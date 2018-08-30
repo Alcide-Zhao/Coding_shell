@@ -1,0 +1,89 @@
+#!/usr/bin/env python
+
+# The jobname
+#PBS -N python_submission
+# The total number of nodes for your job.
+#PBS -l select=1
+# The walltime needed
+#PBS -l walltime=00:20:00
+# Set the budget to charge the job to (change "budget" to your code)
+#PBS -A n02-MASBOL
+# Queue to use (e.g. short queue for testing).  This line is not
+# nesessary if the standard queue is used
+#PBS -q standard
+
+# Import the Python modules required for system operations
+# To get environment variables
+import os
+# To run shell commands
+import subprocess
+
+# This short function adds a module to your environment
+def load_module(moduleloc, modulename):
+  p = subprocess.Popen(
+        "{0}/bin/modulecmd python load {1}".format(moduleloc, modulename),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+      )
+  stdout,stderr = p.communicate()
+  exec stdout
+  
+# This short function removes a module from your environment
+def unload_module(moduleloc, modulename):
+  p = subprocess.Popen(
+        "{0}/bin/modulecmd python unload {1}".format(moduleloc, modulename),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+      )
+  stdout,stderr = p.communicate()
+  exec stdout
+  
+# This short function switches modules in your environment
+def switch_module(moduleloc, modulename_from, modulename_to):
+  p = subprocess.Popen(
+        "{0}/bin/modulecmd python switch {1} {2}".format(moduleloc, modulename_from, modulename_to),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+      )
+  stdout,stderr = p.communicate()
+  exec stdout
+  
+# Get the location of the modules installation
+moduleloc = os.environ["MODULESHOME"]
+
+# Make sure that the modules environment is setup correctly
+execfile("{0}/init/python.py".format(moduleloc))
+
+# Set any modules required for the run (note, these are for
+# illustration and may not work correctly for cp2k)
+switch_module(moduleloc, "PrgEnv-cray", "PrgEnv-intel")
+#unload_module(moduleloc, "some_module_to_unload")
+load_module(moduleloc, "cp2k")
+
+# Print a summary of the loaded modules
+print os.environ['LOADEDMODULES']
+
+# Change to the directory the job was submitted from
+os.chdir(os.environ["PBS_O_WORKDIR"])
+
+# Set the number of MPI tasks
+mpiTasks = 24
+
+# This section sets up a list with the aprun command
+runcommand = []
+# aprun to launch jobs and command line options
+runcommand.append("aprun")
+runcommand.append("-n {0}".format(mpiTasks))
+
+# Set the executable name and input and output files
+execName = "pm2.5_from_CAMchem.py"
+#inputName = "input"
+
+# Add executable name to the command
+runcommand.append(execName)
+
+print runcommand
+p = subprocess.Popen(runcommand, stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+#inputFile = open(inputName, 'r')
+#inputData = inputFile.read()
+#inputFile.close()
+stdout, stderr = p.communicate()  #input=inputData
